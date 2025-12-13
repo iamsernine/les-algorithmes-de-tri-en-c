@@ -3,6 +3,13 @@ CC = gcc
 CFLAGS = -O2 -Wall -Wextra -std=c11 -I./include
 LDFLAGS = -lm
 
+# Valeurs par défaut pour les benchmarks
+MIN_SIZE = 1000
+MAX_SIZE = 10000
+STEP = 1000
+ITERATIONS = 2
+TIMEOUT_BENCH = 1800
+
 # Répertoires
 SRC_DIR = src
 BUILD_DIR = build
@@ -56,8 +63,8 @@ clean-all: clean
 
 # Benchmark complet standard (1000-50000)
 bench-full: all
-	@echo "=== Benchmark complet (1000-50000) ==="
-	@timeout 1800 ./$(BIN_DIR)/$(TARGET) --bench-all --min-size 1000 --max-size 50000 --step 1000 --iterations 2 --output $(DATA_DIR)/results.csv || echo "Benchmark terminé (peut-être timeout)"
+	@echo "=== Benchmark complet ($(MIN_SIZE)-$(MAX_SIZE)) ==="
+	@timeout $(TIMEOUT_BENCH) ./$(BIN_DIR)/$(TARGET) --bench-all --min-size $(MIN_SIZE) --max-size $(MAX_SIZE) --step $(STEP) --iterations $(ITERATIONS) --output $(DATA_DIR)/results.csv || echo "Benchmark terminé (peut-être timeout)"
 
 # Benchmark rapide (juste quelques tailles)
 bench-quick: all
@@ -95,45 +102,28 @@ bench-nlogn: all
 # COMMANDES DE VISUALISATION
 # ============================================
 
-# Préparer les données pour gnuplot
-prepare-data:
-	@echo "Préparation des données..."
-	@if [ -f "$(DATA_DIR)/results.csv" ]; then \
-		cd $(PLOTS_DIR) && python3 preprocess.py 2>/dev/null || echo "Prétraitement Python non disponible"; \
-		echo "Données préparées dans $(DATA_DIR)/"; \
-	else \
-		echo "Aucun fichier results.csv trouvé. Exécutez d'abord un benchmark."; \
-	fi
-
 # Générer les graphiques
-plot: prepare-data
+plot:
 	@echo "Génération des graphiques..."
 	@if command -v gnuplot >/dev/null 2>&1; then \
-		cd $(PLOTS_DIR) && gnuplot plot.gp 2>&1 | grep -v "warning\|undefined"; \
-		if [ -f "all_algorithms.png" ]; then \
-			echo "Graphiques générés dans $(PLOTS_DIR)/"; \
-			ls -la $(PLOTS_DIR)/*.png; \
-		else \
-			echo "Erreur: Aucun graphique généré"; \
-		fi \
+		echo "set terminal pngcairo size 1280,720 enhanced font 'Verdana,10'" > $(PLOTS_DIR)/plot.gp; \
+		echo "set datafile separator ','" >> $(PLOTS_DIR)/plot.gp; \
+		echo "set output 'all_algorithms.png'" >> $(PLOTS_DIR)/plot.gp; \
+		echo "set title 'Performance des Algorithmes de Tri'" >> $(PLOTS_DIR)/plot.gp; \
+		echo "set xlabel 'Taille du Tableau (éléments)'" >> $(PLOTS_DIR)/plot.gp; \
+		echo "set ylabel 'Temps d'\''Exécution (secondes)'" >> $(PLOTS_DIR)/plot.gp; \
+		echo "set grid" >> $(PLOTS_DIR)/plot.gp; \
+		echo "set logscale y" >> $(PLOTS_DIR)/plot.gp; \
+		echo "set key outside right top" >> $(PLOTS_DIR)/plot.gp; \
+		echo "plot for [i=0:20] '../data/results.csv' every ::1 using 2:($$1 eq word('bubble,selection,insertion,shell,heap,merge,quick,comb,cocktail,cycle,gnome,tim,counting,radix,bucket,pigeonhole,bitonic,stooge,oddeven,strand,intro', i+1) ? $$3 : 1/0) title word('Bubble,Selection,Insertion,Shell,Heap,Merge,Quick,Comb,Cocktail,Cycle,Gnome,Tim,Counting,Radix,Bucket,Pigeonhole,Bitonic,Stooge,OddEven,Strand,Intro', i+1) with linespoints" >> $(PLOTS_DIR)/plot.gp; \
+		cd $(PLOTS_DIR) && gnuplot plot.gp; \
+		echo "Graphiques générés dans $(PLOTS_DIR)/"; \
 	else \
 		echo "Gnuplot n'est pas installé. Installation: sudo apt-get install gnuplot"; \
 	fi
 
 # Générer un graphique simple (fallback)
-plot-simple: prepare-data
-	@if command -v gnuplot >/dev/null 2>&1; then \
-		echo "set terminal png size 1200,800" > $(PLOTS_DIR)/simple.gp; \
-		echo "set output '$(PLOTS_DIR)/simple.png'" >> $(PLOTS_DIR)/simple.gp; \
-		echo "set datafile separator comma" >> $(PLOTS_DIR)/simple.gp; \
-		echo "set title 'Performances des Algorithmes'" >> $(PLOTS_DIR)/simple.gp; \
-		echo "set xlabel 'Taille'" >> $(PLOTS_DIR)/simple.gp; \
-		echo "set ylabel 'Temps (s)'" >> $(PLOTS_DIR)/simple.gp; \
-		echo "set grid" >> $(PLOTS_DIR)/simple.gp; \
-		echo "plot '$(DATA_DIR)/results_cleaned.csv' using 2:3:1 with points palette pt 7 ps 1 title ''" >> $(PLOTS_DIR)/simple.gp; \
-		cd $(PLOTS_DIR) && gnuplot simple.gp; \
-		echo "Graphique simple généré: $(PLOTS_DIR)/simple.png"; \
-	fi
+plot-simple: plot
 
 # Benchmark complet avec graphiques
 bench-plot: bench-full plot
@@ -212,7 +202,6 @@ help:
 	@echo "  make plot             - Génère les graphiques (nécessite gnuplot)"
 	@echo "  make plot-simple      - Génère un graphique simple"
 	@echo "  make bench-plot       - Benchmark complet + graphiques"
-	@echo "  make prepare-data     - Prépare les données pour visualisation"
 	@echo ""
 	@echo "Tests:"
 	@echo "  make test-quick       - Test de validation rapide"
@@ -228,4 +217,4 @@ help:
 	@echo "  make bench-plot"
 	@echo "  make test-validate"
 
-.PHONY: all directories clean clean-all bench-full bench-quick bench-algo bench-quadratic bench-nlogn plot plot-simple bench-plot test-quick test-validate run show-results check-data help prepare-data
+.PHONY: all directories clean clean-all bench-full bench-quick bench-algo bench-quadratic bench-nlogn plot plot-simple bench-plot test-quick test-validate run show-results check-data help

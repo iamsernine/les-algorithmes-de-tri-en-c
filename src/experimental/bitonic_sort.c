@@ -1,35 +1,38 @@
 #include "../../include/sort_algorithms.h"
 
-static void comp_and_swap(int arr[], int i, int j, int dir) {
+
+
+// Function to compare and swap elements based on direction
+// dir = 1 for ascending, 0 for descending
+static void compare_and_swap(int arr[], int i, int j, int dir) {
     if (dir == (arr[i] > arr[j])) {
-        int temp = arr[i];
-        arr[i] = arr[j];
-        arr[j] = temp;
+        swap(&arr[i], &arr[j]);
     }
 }
 
-static void bitonic_merge(int arr[], int low, int cnt, int dir) {
-    if (cnt > 1) {
-        int k = cnt / 2;
-        for (int i = low; i < low + k; i++) {
-            comp_and_swap(arr, i, i + k, dir);
-        }
-        bitonic_merge(arr, low, k, dir);
-        bitonic_merge(arr, low + k, k, dir);
-    }
-}
-
-static void bitonic_sort_recursive(int arr[], int low, int cnt, int dir) {
-    if (cnt > 1) {
-        int k = cnt / 2;
-        
-        bitonic_sort_recursive(arr, low, k, 1);
-        bitonic_sort_recursive(arr, low + k, k, 0);
-        
-        bitonic_merge(arr, low, cnt, dir);
-    }
-}
-
+// Main function to initiate bitonic sort for arbitrary size
 void bitonic_sort_wrapper(int arr[], int n) {
-    bitonic_sort_recursive(arr, 0, n, 1);
+    if (n <= 1) {
+        return;
+    }
+
+    int i, j, k;
+    int dir = 1; // 1 for ascending sort
+
+    for (k = 2; (k >> 1) < n; k <<= 1) {
+        for (i = 0; i < n; i++) {
+            int l = i ^ (k - 1);
+            if (l > i && l < n) {
+                compare_and_swap(arr, i, l, dir);
+            }
+        }
+        for (j = k >> 1; j > 0; j >>= 1) {
+            for (i = 0; i < n; i++) {
+                int l = i ^ j;
+                if (l > i && l < n) {
+                    compare_and_swap(arr, i, l, dir);
+                }
+            }
+        }
+    }
 }
